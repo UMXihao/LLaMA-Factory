@@ -18,6 +18,7 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForVision2Seq, AutoProcessor, AutoTokenizer
 from trl import AutoModelForCausalLMWithValueHead
 
+from ..elastic_llama.custom_llama import CustomLlamaForCausalLM
 from ..extras import logging
 from ..extras.misc import count_parameters, skip_check_imports, try_download_model_from_other_hub
 from .adapter import init_adapter
@@ -143,7 +144,6 @@ def load_model(
             model = load_unsloth_pretrained_model(config, model_args)
 
     if model is None and not lazy_load:
-        config.head_dim = 128 # 不管head修改为多少，这里head_dim保持128
         init_kwargs["config"] = config
         init_kwargs["pretrained_model_name_or_path"] = model_args.model_name_or_path
 
@@ -158,16 +158,7 @@ def load_model(
             if model_args.train_from_scratch:
                 model = load_class.from_config(config, trust_remote_code=model_args.trust_remote_code)
             else:
-                model = load_class.from_pretrained(**init_kwargs)
-                # reset model param
-                new_q_proj = torch.nn.Linear(4096, 512)
-                new_k_proj = torch.nn.Linear(4096, 512)
-                new_v_proj = torch.nn.Linear(4096, 512)
-
-                for layer in model.layers:
-                    layer.self_attn.q_proj = new_q_proj
-                    layer.self_attn.k_proj = new_k_proj
-                    layer.self_attn.v_proj = new_v_proj
+                model = CustomLlamaForCausalLM.from_pretrained(**init_kwargs)
 
         if model_args.mixture_of_depths == "convert":
             model = convert_pretrained_model_to_mod(model, config, model_args)
