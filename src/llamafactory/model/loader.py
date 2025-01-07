@@ -160,6 +160,13 @@ def load_model(
             else:
                 model = load_class.from_pretrained(**init_kwargs)
 
+                # set other qkv weight parameters to zero
+                for layer in model.model.layers:
+                    layer.self_attn.q_proj[:, 512:] = 0
+                    layer.self_attn.k_proj[:, 512:] = 0
+                    layer.self_attn.v_proj[:, 512:] = 0
+                    layer.self_attn.v_proj[512:, :] = 0
+
         if model_args.mixture_of_depths == "convert":
             model = convert_pretrained_model_to_mod(model, config, model_args)
 
