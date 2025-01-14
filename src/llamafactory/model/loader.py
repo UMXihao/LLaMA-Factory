@@ -160,13 +160,6 @@ def load_model(
             else:
                 model = load_class.from_pretrained(**init_kwargs)
 
-                # set other qkv weight parameters to zero
-                for layer in model.model.layers:
-                    layer.self_attn.q_proj[:, 512:] = 0
-                    layer.self_attn.k_proj[:, 512:] = 0
-                    layer.self_attn.v_proj[:, 512:] = 0
-                    layer.self_attn.v_proj[512:, :] = 0
-
         if model_args.mixture_of_depths == "convert":
             model = convert_pretrained_model_to_mod(model, config, model_args)
 
@@ -175,6 +168,16 @@ def load_model(
         register_autoclass(config, model, tokenizer)
 
     model = init_adapter(config, model, model_args, finetuning_args, is_trainable)
+
+    for layer in model.model.layers:
+        layer.self_attn.q_proj.lora_A.default.weight.data[512:, :].requires_grad = False
+        layer.self_attn.q_proj.lora_B.default.weight.data[:, 512:].requires_grad = False
+        layer.self_attn.k_proj.lora_A.default.weight.data[512:, :].requires_grad = False
+        layer.self_attn.k_proj.lora_B.default.weight.data[:, 512:].requires_grad = False
+        layer.self_attn.v_proj.lora_A.default.weight.data[512:, :].requires_grad = False
+        layer.self_attn.v_proj.lora_B.default.weight.data[:, 512:].requires_grad = False
+        layer.self_attn.o_proj.lora_A.default.weight.data[:, 512:].requires_grad = False
+        layer.self_attn.o_proj.lora_B.default.weight.data[512:, :].requires_grad = False
 
     if add_valuehead:
         model = AutoModelForCausalLMWithValueHead.from_pretrained(model)
