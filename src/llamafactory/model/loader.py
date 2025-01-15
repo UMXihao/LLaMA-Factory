@@ -160,6 +160,11 @@ def load_model(
             else:
                 model = load_class.from_pretrained(**init_kwargs)
 
+                # only update self attention qkv weights
+                for name, param in model.named_parameters():
+                    if "self_attn" not in name:
+                        param.requires_grad = False
+
         if model_args.mixture_of_depths == "convert":
             model = convert_pretrained_model_to_mod(model, config, model_args)
 
