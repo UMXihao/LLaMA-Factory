@@ -160,13 +160,9 @@ def load_model(
             else:
                 model = load_class.from_pretrained(**init_kwargs)
 
-                # only update self attention qkv weights
+                # frozen all origin model's weights
                 for name, param in model.named_parameters():
-                    if "self_attn" not in name:
-                        param.requires_grad = False
-
-                for name, param in model.named_parameters():
-                    logger.info_rank0("{}: {}".format(name, param.requires_grad))
+                    param.requires_grad = False
 
         if model_args.mixture_of_depths == "convert":
             model = convert_pretrained_model_to_mod(model, config, model_args)
@@ -177,6 +173,7 @@ def load_model(
 
     model = init_adapter(config, model, model_args, finetuning_args, is_trainable)
 
+    # 如果控制无效直接删除，如果有效在合并模型时需要注释掉
     for layer in model.model.model.layers:
         layer.self_attn.q_proj.lora_A.default.weight.data[512:, :].requires_grad = False
         layer.self_attn.q_proj.lora_B.default.weight.data[:, 512:].requires_grad = False
