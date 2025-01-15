@@ -165,6 +165,9 @@ def load_model(
                     if "self_attn" not in name:
                         param.requires_grad = False
 
+                for name, param in model.named_parameters():
+                    logger.info_rank0("{}: {}".format(name, param.requires_grad))
+
         if model_args.mixture_of_depths == "convert":
             model = convert_pretrained_model_to_mod(model, config, model_args)
 
@@ -174,7 +177,7 @@ def load_model(
 
     model = init_adapter(config, model, model_args, finetuning_args, is_trainable)
 
-    for layer in model.model.layers:
+    for layer in model.model.model.layers:
         layer.self_attn.q_proj.lora_A.default.weight.data[512:, :].requires_grad = False
         layer.self_attn.q_proj.lora_B.default.weight.data[:, 512:].requires_grad = False
         layer.self_attn.k_proj.lora_A.default.weight.data[512:, :].requires_grad = False
