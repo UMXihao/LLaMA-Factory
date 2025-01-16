@@ -173,17 +173,6 @@ def load_model(
 
     model = init_adapter(config, model, model_args, finetuning_args, is_trainable)
 
-    # 如果控制无效直接删除，如果有效在合并模型时需要注释掉
-    for layer in model.model.model.layers:
-        layer.self_attn.q_proj.lora_A.default.weight.data[512:, :].requires_grad = False
-        layer.self_attn.q_proj.lora_B.default.weight.data[:, 512:].requires_grad = False
-        layer.self_attn.k_proj.lora_A.default.weight.data[512:, :].requires_grad = False
-        layer.self_attn.k_proj.lora_B.default.weight.data[:, 512:].requires_grad = False
-        layer.self_attn.v_proj.lora_A.default.weight.data[512:, :].requires_grad = False
-        layer.self_attn.v_proj.lora_B.default.weight.data[:, 512:].requires_grad = False
-        layer.self_attn.o_proj.lora_A.default.weight.data[:, 512:].requires_grad = False
-        layer.self_attn.o_proj.lora_B.default.weight.data[512:, :].requires_grad = False
-
     if add_valuehead:
         model = AutoModelForCausalLMWithValueHead.from_pretrained(model)
         patch_valuehead_model(model)
