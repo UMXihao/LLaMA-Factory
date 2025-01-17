@@ -16,14 +16,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import math
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from transformers import Trainer
 from transformers.integrations import is_deepspeed_zero3_enabled
 from transformers.modeling_utils import is_fsdp_enabled
-from transformers.optimization import get_scheduler
+from transformers.optimization import get_scheduler, AdamW
 from transformers.pytorch_utils import ALL_LAYERNORM_LAYERS
 from transformers.trainer_pt_utils import get_parameter_names
 from typing_extensions import override
@@ -69,6 +69,63 @@ class DummyOptimizer(torch.optim.Optimizer):
     def step(self, closure: Optional[Callable[[], float]] = None) -> Optional[float]:
         pass
 
+class CustomAdamW(AdamW):
+    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01, correct_bias=True):
+        super().__init__(params, lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
+        self.correct_bias = correct_bias
+
+    def step(self, closure=None):
+        """Performs a single optimization step.
+
+        Args:
+            closure (callable, optional): A closure that reevaluates the model
+                and returns the loss.
+        """
+        logger.info("sean CustomAdamW")
+        loss = None
+        if closure is not None:
+            with torch.enable_grad():
+                loss = closure()
+
+        for group in self.param_groups:
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+                grad = p.grad.data
+                if grad.is_sparse:
+                    raise RuntimeError('AdamW does not support sparse gradients, please consider SparseAdam instead')
+
+                state = self.state[p]
+
+                # State initialization
+                if len(state) == 0:
+                    state['step'] = 0
+                    # Exponential moving average of gradient values
+                    state['exp_avg'] = torch.zeros_like(p.data)
+                    # Exponential moving average of squared gradient values
+                    state['exp_avg_sq'] = torch.zeros_like(p.data)
+
+                exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
+                beta1, beta2 = group['betas']
+
+                state['step'] += 1
+
+                # Decay the first and second moment running average coefficient
+                exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
+                exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
+                denom = exp_avg_sq.sqrt().add_(group['eps'])
+
+                step_size = group['lr']
+                if self.correct_bias:  # No bias correction for Bert
+                    bias_correction1 = 1.0 - beta1 ** state['step']
+                    bias_correction2 = 1.0 - beta2 ** state['step']
+                    step_size *= math.sqrt(bias_correction2) / bias_correction1
+
+                # 自定义的参数更新逻辑
+                p.data.addcdiv_(exp_avg, denom, value=-step_size)
+                p.data.add_(-group['weight_decay'] * group['lr'], p.data)
+
+        return loss
 
 def create_modelcard_and_push(
     trainer: "Trainer",
@@ -411,7 +468,7 @@ def create_custom_optimizer(
 
     if finetuning_args.use_adam_mini:
         return _create_adam_mini_optimizer(model, training_args)
-
+    return CustomAdamW(model.parameters(), lr=training_args.learning_rate, weight_decay=training_args.weight_decay)
 
 def create_custom_scheduler(
     training_args: "Seq2SeqTrainingArguments",
