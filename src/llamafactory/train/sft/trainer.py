@@ -73,9 +73,7 @@ class CustomSeq2SeqTrainer(Seq2SeqTrainer):
     def create_optimizer(self) -> "torch.optim.Optimizer":
         if self.optimizer is None:
             self.optimizer = create_custom_optimizer(self.model, self.args, self.finetuning_args)
-        self.optimizer = super().create_optimizer()
-        print("sean: ", self.optimizer.__class__.__name__)
-        return self.optimizer
+        return super().create_optimizer()
 
     @override
     def create_scheduler(
