@@ -81,7 +81,6 @@ class CustomAdamW(AdamW):
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
-        logger.info("sean CustomAdamW")
         loss = None
         if closure is not None:
             with torch.enable_grad():
@@ -89,8 +88,10 @@ class CustomAdamW(AdamW):
 
         for group in self.param_groups:
             for p in group['params']:
+                logger.info(f"sean: {p.grad}")
                 if p.grad is None:
                     continue
+                # recognize qkvo weights, change lora_a,lora_b grad
                 grad = p.grad.data
                 if grad.is_sparse:
                     raise RuntimeError('AdamW does not support sparse gradients, please consider SparseAdam instead')
