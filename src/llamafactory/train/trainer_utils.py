@@ -98,7 +98,7 @@ class CustomAdamW(AdamW):
                         p.grad[:, 512:] = 0
                     if rows_zero.item():
                         p.grad[512:, :] = 0
-                logger.info(f"sean p:{p}, p.grad:{p.grad}, columns:{columns_zero.item()}, rows:{rows_zero.item()}")
+                    # logger.info(f"sean p:{p}, p.grad:{p.grad}, columns:{columns_zero.item()}, rows:{rows_zero.item()}")
                 grad = p.grad.data
                 if grad.is_sparse:
                     raise RuntimeError('AdamW does not support sparse gradients, please consider SparseAdam instead')
