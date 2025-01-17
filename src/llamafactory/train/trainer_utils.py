@@ -88,10 +88,17 @@ class CustomAdamW(AdamW):
 
         for group in self.param_groups:
             for p in group['params']:
-                logger.info(f"sean: {p.grad}")
                 if p.grad is None:
                     continue
-                # recognize qkvo weights, change lora_a,lora_b grad
+                else:
+                    # recognize qkvo weights, change lora_a,lora_b grad
+                    columns_zero = torch.all(p[:, 512:4096] == 0)
+                    rows_zero = torch.all(p[512:4096, :] == 0)
+                    if columns_zero.item():
+                        p.grad[:, 512:] = 0
+                    if rows_zero.item():
+                        p.grad[512:, :] = 0
+                logger.info(f"sean p:{p}, p.grad:{p.grad}, columns:{columns_zero.item()}, rows:{rows_zero.item()}")
                 grad = p.grad.data
                 if grad.is_sparse:
                     raise RuntimeError('AdamW does not support sparse gradients, please consider SparseAdam instead')
