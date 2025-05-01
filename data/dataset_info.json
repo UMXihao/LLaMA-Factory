@@ -1,4 +1,22 @@
 {
+  "train": {
+    "file_name": "train.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "history": "history"
+    }
+  },
+  "validation": {
+    "file_name": "validation.json",
+    "columns": {
+      "prompt": "instruction",
+      "query": "input",
+      "response": "output",
+      "history": "history"
+    }
+  },
   "identity": {
     "file_name": "identity.json"
   },

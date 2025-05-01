@@ -173,10 +173,6 @@ def load_model(
 
     model = init_adapter(config, model, model_args, finetuning_args, is_trainable)
 
-    for name, param in model.named_parameters():
-        if "self_attn" not in name:
-            param.requires_grad = False
-
     if add_valuehead:
         model = AutoModelForCausalLMWithValueHead.from_pretrained(model)
         patch_valuehead_model(model)
